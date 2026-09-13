@@ -1,0 +1,11 @@
+:root { color-scheme: light dark; font-family: system-ui, -apple-system, sans-serif; }
+body { margin: 0; padding: 1.5rem; }
+.chat { max-width: 48rem; margin: 0 auto; }
+.messages { list-style: none; padding: 0; display: grid; gap: .75rem; }
+.messages li { padding: .75rem 1rem; border-radius: .5rem; background: rgba(127,127,127,.12); }
+.messages .user { background: rgba(31,78,120,.15); }
+.messages .error { background: rgba(200,60,60,.15); }
+form { display: flex; gap: .5rem; margin-top: 1rem; }
+input { flex: 1; padding: .6rem .75rem; border-radius: .5rem; border: 1px solid rgba(127,127,127,.4); }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid rgba(127,127,127,.25); }

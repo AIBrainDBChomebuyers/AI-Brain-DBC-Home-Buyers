@@ -1,0 +1,28 @@
+{
+  "name": "dbc-ai-brain",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Internal AI assistant over DBC Home Buyers' deal, construction and financing records.",
+  "workspaces": [
+    "backend",
+    "frontend",
+    "shared"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace=backend & npm run dev --workspace=frontend",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=shared && npm run build --workspace=backend && npm run build --workspace=frontend",
+    "test": "npm run test --workspace=backend && npm run test --workspace=frontend",
+    "lint": "npm run lint --workspaces --if-present",
+    "db:up": "docker compose -f infra/docker-compose.yml up -d",
+    "db:down": "docker compose -f infra/docker-compose.yml down",
+    "db:migrate": "bash scripts/migrate.sh",
+    "db:load": "bash scripts/load-data.sh",
+    "db:reset": "bash scripts/reset.sh",
+    "db:sync": "bash scripts/sync-from-extraction.sh"
+  }
+}

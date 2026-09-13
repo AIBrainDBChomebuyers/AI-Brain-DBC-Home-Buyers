@@ -1,0 +1,54 @@
+-- Generated 2026-09-13 13:21 UTC by build_migrations.py from db_export/schema.json
+-- Do not edit by hand; re-run the generator instead.
+-- Requires PostgreSQL 15+ (security_invoker views).
+
+DROP POLICY IF EXISTS p_deal_portfolio_read ON deal_portfolio;
+ALTER TABLE deal_portfolio DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON deal_portfolio FROM ai_brain_app;
+DROP POLICY IF EXISTS p_deal_aggregates_read ON deal_aggregates;
+ALTER TABLE deal_aggregates DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON deal_aggregates FROM ai_brain_app;
+DROP POLICY IF EXISTS p_deal_economics_read ON deal_economics;
+ALTER TABLE deal_economics DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON deal_economics FROM ai_brain_app;
+DROP POLICY IF EXISTS p_focus_and_avoid_read ON focus_and_avoid;
+ALTER TABLE focus_and_avoid DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON focus_and_avoid FROM ai_brain_app;
+DROP POLICY IF EXISTS p_hud_settlements_read ON hud_settlements;
+ALTER TABLE hud_settlements DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON hud_settlements FROM ai_brain_app;
+DROP POLICY IF EXISTS p_loan_activity_read ON loan_activity;
+ALTER TABLE loan_activity DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON loan_activity FROM ai_brain_app;
+DROP POLICY IF EXISTS p_loan_statements_read ON loan_statements;
+ALTER TABLE loan_statements DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON loan_statements FROM ai_brain_app;
+DROP POLICY IF EXISTS p_master_budget_read ON master_budget;
+ALTER TABLE master_budget DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON master_budget FROM ai_brain_app;
+DROP POLICY IF EXISTS p_master_budget_line_items_read ON master_budget_line_items;
+ALTER TABLE master_budget_line_items DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON master_budget_line_items FROM ai_brain_app;
+DROP POLICY IF EXISTS p_mls_listings_read ON mls_listings;
+ALTER TABLE mls_listings DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON mls_listings FROM ai_brain_app;
+DROP POLICY IF EXISTS p_performance_by_county_read ON performance_by_county;
+ALTER TABLE performance_by_county DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON performance_by_county FROM ai_brain_app;
+DROP POLICY IF EXISTS p_performance_by_exit_strategy_read ON performance_by_exit_strategy;
+ALTER TABLE performance_by_exit_strategy DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON performance_by_exit_strategy FROM ai_brain_app;
+DROP POLICY IF EXISTS p_profit_reconciliation_read ON profit_reconciliation;
+ALTER TABLE profit_reconciliation DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON profit_reconciliation FROM ai_brain_app;
+DROP POLICY IF EXISTS p_property_profit_breakdown_read ON property_profit_breakdown;
+ALTER TABLE property_profit_breakdown DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON property_profit_breakdown FROM ai_brain_app;
+DROP POLICY IF EXISTS p_quickbooks_pl_read ON quickbooks_pl;
+ALTER TABLE quickbooks_pl DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON quickbooks_pl FROM ai_brain_app;
+DROP POLICY IF EXISTS p_rentals_cash_in_deal_read ON rentals_cash_in_deal;
+ALTER TABLE rentals_cash_in_deal DISABLE ROW LEVEL SECURITY;
+REVOKE ALL ON rentals_cash_in_deal FROM ai_brain_app;
+DROP ROLE IF EXISTS ai_brain_app;
+DELETE FROM _migrations WHERE name = '003_enable_rls';
