@@ -45,7 +45,7 @@ Ordered. Take the top one.
 | ~~1~~ | ~~Create the Supabase project~~ **done** | ops | — |
 | ~~2~~ | ~~Run migrations, load 16 tables~~ **done, 5,279 rows** | database | — |
 | ~~3~~ | ~~Verify RLS on a real server~~ **done, va sees 0 economics** | database | — |
-| 3b | Automate that check as a CI integration test | database | nothing |
+| ~~3b~~ | ~~Automate that check as a CI integration test~~ **done, `scripts/verify_migration.py`** | database | — |
 | 4 | Decide identity — Supabase auth or Keycloak | ops | a decision |
 | 5 | Decide the embedding model (1536 vs 3072) | rag | a decision |
 | 6 | Consolidate: collections → tables, pgvector column | database | nothing |
@@ -58,6 +58,62 @@ Ordered. Take the top one.
 
 Items 1–5 are independent of the consolidation and can start today.
 
+
+---
+
+## 2026-09-13 — Migration verified against the workbook, cell by cell
+
+**Layer:** database
+
+Neil asked whether the deal data really is in Supabase and whether the
+migration matches the Excel files. The honest answer needed more than the row
+counts we already had, so the whole export is now compared against
+`DBC_Client_Review.xlsx` — the workbook it was built from — and the comparison
+lives in `scripts/verify_migration.py` so it can be re-run after any reload.
+
+**What it checks, and what it found**
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Row counts, 16 tables | all match |
+| 2 | Every cell against its workbook cell | 82,426 compared, 0 unexplained |
+| 3 | The three columns with no workbook header | all agree with their source |
+| 4 | The 14 dropped columns really were empty | confirmed |
+| 5 | Nothing arrived completely null | 0 of 383 columns empty |
+| 6 | Six roles × 16 tables, plus no-role and writes | all boundaries hold |
+
+Three cells in `deal_portfolio.property_county` differ from the workbook, and
+they are meant to. Deal Portfolio's county *name* disagrees with the
+`county_code` the same property carries on Deal History, and the export trusts
+the code: 1236 elm and 750 charing are Baltimore City, not Baltimore County,
+and 219 doris is Anne Arundel. On those three rows the database is more correct
+than the spreadsheet. The script reads them out of the export's own
+`MANIFEST.json` rather than hard-coding them, so a fourth correction shows up
+as something to look at, and a correction that silently stops happening also
+shows up.
+
+**Two things worth keeping**
+
+`postgres` holds BYPASSRLS. A role check run on that connection returns every
+row for every role and looks like a pass — it is one of the easier ways to
+convince yourself a broken permission model works. Check 6 connects as
+`ai_brain_app` and asserts the connecting role does *not* hold BYPASSRLS before
+it believes anything else. The practical consequence for the dashboard is the
+opposite and worth knowing: the Table Editor connects as `postgres`, so it
+shows all rows even though the API would not.
+
+The mutation suite over this script initially reported 7 of 7 caught. It was
+running a copy from a scratch directory, and the script derives the project
+root from `__file__`, so the copy found neither `.env` nor the workbook and
+exited before running a single check. Every mutation "failed" for the same
+irrelevant reason. Run from the right directory, one genuinely survived: check
+4 skipped any column it could not find on the tab, so a typo in the dropped
+list passed as a success. A missing column is now a failure. 9 of 9 caught,
+baseline passes.
+
+**Still true:** 5,279 of 10,227 rows are in Supabase. The 4,948 document rows —
+3,728 passages of PDF text, plus the glossary, column catalogue and file index —
+are still MongoDB-shaped JSON waiting on the consolidation in item 6.
 
 ---
 
