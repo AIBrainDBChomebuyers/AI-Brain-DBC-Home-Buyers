@@ -17,6 +17,16 @@ asking is allowed to see.
       scripts/        migrate, load, reset, sync.
       docs/           Architecture, data model, access control, chatbot plan.
 
+## Supabase
+
+Project `ihmrhwmqgsnumavebztf`. `.mcp.json` registers Supabase's MCP server
+for this project, so tooling can read the schema, run queries and check logs
+against it directly. The URL holds only the project reference — no
+credential.
+
+Browser-side keys live in `.env.local`; the database connection strings the
+backend needs live in `.env`. Both are gitignored.
+
 ## Getting started
 
 Setting up Supabase for the first time: [docs/SETUP.md](./docs/SETUP.md).
