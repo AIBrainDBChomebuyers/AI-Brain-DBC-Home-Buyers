@@ -3,28 +3,24 @@
 Start to finish. Roughly 30 minutes, most of it waiting for the project to
 provision.
 
-**Before you start**, two things are missing on this machine and step 0 fixes
-both. Neither is optional.
-
 ---
 
-## 0. Install what the scripts need
+## 0. Prerequisites — already installed on Neil's machine
 
 ```bash
-brew install libpq && brew link --force libpq   # gives you psql
-/usr/bin/python3 -m pip install --user "psycopg[binary]"
+brew install libpq && brew link --force libpq   # psql, runs the migrations
+/usr/bin/python3 -m pip install --user "psycopg[binary]"   # the loader's driver
 ```
 
-`psql` runs the migrations. `psycopg` is what the loader connects with — it
-is not installed, and the loader will tell you so and stop rather than fail
-halfway.
+Installed 2026-09-13: **psql 18.6** and **psycopg 3.2.13**. `brew link
+--force` put psql on the default PATH, so no `~/.zshrc` change is needed.
 
-Note the interpreter: `/usr/bin/python3`, not the Homebrew one. The project's
-dependencies live there. `rebuild_all.sh` already probes for the right one;
-these commands do not, so be explicit.
+Note the interpreter: `/usr/bin/python3`, not the Homebrew one — that is
+where this project's dependencies live. `rebuild_all.sh` probes for the right
+one; these commands do not, so be explicit.
 
-*If you would rather not install psql*, every migration can be pasted into
-Supabase's SQL editor instead — see the note at step 3.
+*If you would rather not install psql at all*, every migration can be pasted
+into Supabase's SQL editor instead — see the note at step 3a.
 
 ---
 
