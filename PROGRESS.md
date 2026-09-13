@@ -42,7 +42,7 @@ Ordered. Take the top one.
 
 | # | Task | Layer | Blocked by |
 |---|---|---|---|
-| 1 | Create the Supabase project; check `rolbypassrls` | ops | nothing |
+| 1 | Create the Supabase project; check `rolbypassrls` — [SETUP.md](docs/SETUP.md) | ops | nothing |
 | 2 | Run migrations, load the 16 existing tables | database | 1 |
 | 3 | Integration test: RLS behaves as simulated | database | 2 |
 | 4 | Decide identity — Supabase auth or Keycloak | ops | a decision |

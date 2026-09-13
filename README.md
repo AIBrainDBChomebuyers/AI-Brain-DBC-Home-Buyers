@@ -19,6 +19,8 @@ asking is allowed to see.
 
 ## Getting started
 
+Setting up Supabase for the first time: [docs/SETUP.md](./docs/SETUP.md).
+
     cp .env.example .env          # fill in the blanks
     npm install
     npm run db:sync               # fetch the seed data (see below)
