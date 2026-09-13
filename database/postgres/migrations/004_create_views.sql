@@ -1,4 +1,4 @@
--- Generated 2026-09-13 14:58 UTC by build_migrations.py from db_export/schema.json
+-- Generated 2026-09-13 16:17 UTC by build_migrations.py from db_export/schema.json
 -- Do not edit by hand; re-run the generator instead.
 -- Requires PostgreSQL 15+ (security_invoker views).
 
@@ -8,6 +8,7 @@
 -- becomes a way to read around a policy.
 
 -- Economics joined to property facts and the listing. The default shape for a profitability question.
+DROP VIEW IF EXISTS v_deal_full CASCADE;
 CREATE VIEW v_deal_full WITH (security_invoker = true) AS
 SELECT
     b.*,
@@ -36,6 +37,7 @@ FROM deal_economics b
 GRANT SELECT ON v_deal_full TO ai_brain_app;
 
 -- Property facts and listing detail. No economics.
+DROP VIEW IF EXISTS v_property_public CASCADE;
 CREATE VIEW v_property_public WITH (security_invoker = true) AS
 SELECT
     b.*,
@@ -51,6 +53,7 @@ FROM deal_portfolio b
 GRANT SELECT ON v_property_public TO ai_brain_app;
 
 -- Construction line items against the deal. The shape behind 'estimated versus actual renovation cost'.
+DROP VIEW IF EXISTS v_budget_vs_actual CASCADE;
 CREATE VIEW v_budget_vs_actual WITH (security_invoker = true) AS
 SELECT
     b.*,
@@ -74,6 +77,7 @@ FROM master_budget_line_items b
 GRANT SELECT ON v_budget_vs_actual TO ai_brain_app;
 
 -- Loan transactions in deal context.
+DROP VIEW IF EXISTS v_loan_activity_enriched CASCADE;
 CREATE VIEW v_loan_activity_enriched WITH (security_invoker = true) AS
 SELECT
     b.*,
@@ -94,6 +98,7 @@ FROM loan_activity b
 GRANT SELECT ON v_loan_activity_enriched TO ai_brain_app;
 
 -- Settlements in deal context.
+DROP VIEW IF EXISTS v_settlements_enriched CASCADE;
 CREATE VIEW v_settlements_enriched WITH (security_invoker = true) AS
 SELECT
     b.*,
@@ -116,11 +121,13 @@ FROM hud_settlements b
 GRANT SELECT ON v_settlements_enriched TO ai_brain_app;
 
 -- The Top 20% Deals tab. Was a table; is a filter, so it cannot disagree with the ranking it came from.
+DROP VIEW IF EXISTS v_deal_top_20 CASCADE;
 CREATE VIEW v_deal_top_20 WITH (security_invoker = true) AS
 SELECT * FROM v_deal_full WHERE top_20_flag = 'Yes';
 GRANT SELECT ON v_deal_top_20 TO ai_brain_app;
 
 -- The Bottom 20% Deals tab. Symmetric with the top: the same number of deals, taken from the other end of the same rank.
+DROP VIEW IF EXISTS v_deal_bottom_20 CASCADE;
 CREATE VIEW v_deal_bottom_20 WITH (security_invoker = true) AS
 SELECT * FROM v_deal_full
 WHERE deal_rank > (

@@ -61,6 +61,84 @@ Items 1–5 are independent of the consolidation and can start today.
 
 ---
 
+## 2026-09-14 — The joins were the problem, not the values
+
+**Layer:** database
+
+Yesterday's check compared every cell to the workbook and passed: 82,426
+values, 0 unexplained differences. Neil asked whether the *columns* are
+connected correctly. They were not, and nothing in the previous pass could
+have noticed — every column held the right values, and two of them still could
+not be used.
+
+**Three defects, all silent**
+
+*`deal_source` did not join at all.* Deal Aggregates spells it `Wholesalers`;
+Deal Portfolio and Deal History spell it `Wholesaler`. Both spellings are in
+the source workbook, so the export carried both through faithfully and the
+join between them returned zero rows — not an error, zero rows, for 45
+aggregate rows and 48 properties, the second largest deal source DBC has. Ask
+the chatbot "how did wholesaler deals perform" and it answers *no data*.
+
+*Two numeric columns arrived as TEXT.* `deal_economics.profit_ballpark` and
+`hud_settlements.contract_price`. Same root cause: column types come from the
+workbook's Column Map, looked up by name, with `types.get(name, "text")` as a
+silent fallback. `profit_ballpark` is invented by the export and was never in
+the map; `contract_price` is renamed from `sale_price` *after* the map is
+consulted, so the lookup missed — `sale_price` is declared `number` and the
+rename threw the declaration away. Nothing failed. The rows loaded, the values
+look right in the table editor, and `ORDER BY profit_ballpark DESC` returned
+9,900 as the largest profit when the real maximum is 212,000.
+
+**Fixed at the source, not in the database**
+
+`build_database_export.py` now carries the declared type across a rename,
+declares the types of columns it invents in `DERIVED_TYPES`, and reports any
+column still falling back to TEXT in `MANIFEST.json` instead of letting it
+pass. Value spellings are reconciled with the spine through `VALUE_CORRECTIONS`
+and reported the same way. Migration `007` fixes the database that was already
+loaded; a database built from `001` today is correct without it.
+
+**A fourth thing, which is a trap rather than a defect**
+
+`performance_by_exit_strategy.total_profit` matches `SUM(profit_ballpark)`
+exactly for all four strategies — the aggregate tables were computed from the
+Deal Types Overview figure, not from the reconciled `deal_economics.profit`.
+So there are two defensible answers to "what was our total Fix and Flip
+profit": 3,174,200 and 3,249,291. A model picks whichever table it happened to
+read. Both figures are correct and both should stay, so the fix is five column
+comments in `005` saying plainly which is authoritative and why the other
+exists. Text-to-SQL reads them.
+
+**What was already right**
+
+A clean star: 11 foreign keys, all to `deal_portfolio.property_key`, every one
+indexed, zero orphan rows, a primary key on every table. `county_code` and
+`exit_strategy` join cleanly and the counts reconcile exactly — 117 / 43 / 22 /
+9. The shape of the model is not in question; three columns in it were.
+
+**Check 7**
+
+The verification script now checks joins, because six checks passed while the
+most obvious join in the schema returned nothing. It asserts every foreign key
+is indexed and orphan-free, that categorical values shared across tables
+actually match, and that no column holding only digits is typed TEXT — ZIPs,
+lockbox and account numbers excepted, since those are correctly text.
+
+**Two process problems found while fixing this**
+
+`rsync -a --delete` in `sync-from-extraction.sh` deleted the hand-written `007`
+without a word; the next `psql` failed on a missing file. Generated migrations
+are 001-005, hand-written fix-ups are 006 and up, and the latter are now
+protected from deletion. And `004` could not be re-run, which matters because
+a column type cannot be altered while a view depends on it — every view
+definition now begins `DROP VIEW IF EXISTS ... CASCADE`.
+
+**Unchanged:** 5,279 of 10,227 rows. The document side still awaits the
+consolidation.
+
+---
+
 ## 2026-09-13 — Migration verified against the workbook, cell by cell
 
 **Layer:** database

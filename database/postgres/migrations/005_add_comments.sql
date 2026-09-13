@@ -1,4 +1,4 @@
--- Generated 2026-09-13 14:58 UTC by build_migrations.py from db_export/schema.json
+-- Generated 2026-09-13 16:17 UTC by build_migrations.py from db_export/schema.json
 -- Do not edit by hand; re-run the generator instead.
 -- Requires PostgreSQL 15+ (security_invoker views).
 
@@ -51,11 +51,12 @@ COMMENT ON COLUMN deal_portfolio.purchase_date_source IS 'populated on 3 of 256 
 COMMENT ON COLUMN deal_portfolio.county_code IS 'populated on 189 of 256 rows (74%) - do not aggregate without a NOT NULL filter.';
 
 COMMENT ON TABLE deal_aggregates IS '200 rows, from the Deal Aggregates tab. confidential.';
+COMMENT ON COLUMN deal_aggregates.deal_source IS 'Rewritten on load from ''Wholesalers'' to ''Wholesaler'' so it joins to deal_portfolio.deal_source, which spells it the second way. Both spellings are in the source workbook.';
 COMMENT ON COLUMN deal_aggregates.metric_value IS 'populated on 149 of 200 rows (74%) - do not aggregate without a NOT NULL filter.';
 COMMENT ON COLUMN deal_aggregates.sold_year IS 'populated on 112 of 200 rows (56%) - do not aggregate without a NOT NULL filter.';
 
 COMMENT ON TABLE deal_economics IS '256 rows, from the Deal Portfolio tab. confidential.';
-COMMENT ON COLUMN deal_economics.profit IS 'populated on 193 of 256 rows (75%) - do not aggregate without a NOT NULL filter.';
+COMMENT ON COLUMN deal_economics.profit IS 'The authoritative profit. Use this one. Reconciled against the settlement statements and the accounts; where it disagrees with profit_ballpark, this is the figure to quote. Populated on 193 of 256 rows (75%).';
 COMMENT ON COLUMN deal_economics.profit_source IS 'populated on 193 of 256 rows (75%) - do not aggregate without a NOT NULL filter.';
 COMMENT ON COLUMN deal_economics.gross_margin IS 'populated on 5 of 256 rows (2%) - do not aggregate without a NOT NULL filter.';
 COMMENT ON COLUMN deal_economics.total_cash_in IS 'populated on 13 of 256 rows (5%) - do not aggregate without a NOT NULL filter.';
@@ -72,7 +73,7 @@ COMMENT ON COLUMN deal_economics.closing_costs_seller IS 'populated on 28 of 256
 COMMENT ON COLUMN deal_economics.total_holding_costs IS 'populated on 25 of 256 rows (10%) - do not aggregate without a NOT NULL filter.';
 COMMENT ON COLUMN deal_economics.top_20_flag IS 'populated on 191 of 256 rows (75%) - do not aggregate without a NOT NULL filter.';
 COMMENT ON COLUMN deal_economics.deal_rank IS 'populated on 191 of 256 rows (75%) - do not aggregate without a NOT NULL filter.';
-COMMENT ON COLUMN deal_economics.profit_ballpark IS 'populated on 191 of 256 rows (75%) - do not aggregate without a NOT NULL filter.';
+COMMENT ON COLUMN deal_economics.profit_ballpark IS 'The Deal Types Overview figure, kept beside the authoritative one so the deals where the two disagree stay visible rather than being silently resolved. Disagrees with profit on 14 properties, by 75,091 in total. Do NOT use it to answer a profit question - prefer deal_economics.profit. Populated on 191 of 256 rows (75%).';
 
 COMMENT ON TABLE focus_and_avoid IS '15 rows, from the Focus & Avoid tab. confidential.';
 
@@ -181,8 +182,10 @@ COMMENT ON COLUMN mls_listings.property_condition IS 'populated on 19 of 116 row
 COMMENT ON COLUMN mls_listings.yr_major_reno IS 'populated on 4 of 116 rows (3%) - do not aggregate without a NOT NULL filter.';
 
 COMMENT ON TABLE performance_by_county IS '12 rows, from the Perf by County tab. confidential.';
+COMMENT ON COLUMN performance_by_county.total_profit IS 'Pre-computed from profit_ballpark, NOT from deal_economics.profit, so it disagrees with SUM(deal_economics.profit) over the same deals. For the reconciled number, sum deal_economics.profit and group by deal_portfolio.county_code.';
 
 COMMENT ON TABLE performance_by_exit_strategy IS '4 rows, from the Perf by Exit Strategy tab. confidential.';
+COMMENT ON COLUMN performance_by_exit_strategy.total_profit IS 'Pre-computed from profit_ballpark, NOT from deal_economics.profit. It therefore disagrees with SUM(deal_economics.profit) over the same deals: 3,174,200 against 3,249,291 for Fix and Flip, and 327,100 against 354,823 for Wholetail. Quote this only as the Deal Types Overview figure; for the reconciled number, sum deal_economics.profit.';
 
 COMMENT ON TABLE profit_reconciliation IS '136 rows, from the Accounting Summary tab. confidential.';
 COMMENT ON COLUMN profit_reconciliation.house_type_source IS 'populated on 120 of 136 rows (88%) - do not aggregate without a NOT NULL filter.';

@@ -1,4 +1,4 @@
--- Generated 2026-09-13 14:58 UTC by build_migrations.py from db_export/schema.json
+-- Generated 2026-09-13 16:17 UTC by build_migrations.py from db_export/schema.json
 -- Do not edit by hand; re-run the generator instead.
 -- Requires PostgreSQL 15+ (security_invoker views).
 
@@ -119,7 +119,7 @@ CREATE TABLE deal_economics (
     total_holding_costs            NUMERIC(14,2),
     top_20_flag                    TEXT,
     deal_rank                      INTEGER,
-    profit_ballpark                TEXT,
+    profit_ballpark                NUMERIC(14,2),
     source_tab                     TEXT NOT NULL,
     source_row                     INTEGER NOT NULL,
     department                     TEXT NOT NULL,
@@ -175,7 +175,7 @@ CREATE TABLE hud_settlements (
     property_city                  TEXT,
     property_state                 TEXT,
     property_zip                   TEXT,
-    contract_price                 TEXT,
+    contract_price                 NUMERIC(14,2),
     loan_amount                    NUMERIC(14,2),
     earnest_deposit                NUMERIC(14,2),
     gross_due_from_borrower        NUMERIC(14,2),

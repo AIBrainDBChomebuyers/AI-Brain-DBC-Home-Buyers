@@ -14,7 +14,14 @@ cd "$(dirname "$0")/.."
 SRC="../Data Retrieval/extraction_tool/client_review/db_export"
 [ -d "$SRC" ] || { echo "extraction output not found at $SRC" >&2; exit 1; }
 
-rsync -a --delete "$SRC/postgres/migrations/"   database/postgres/migrations/
+# --delete keeps the generated set honest: a migration the generator stops
+# emitting should disappear here too. But it deleted a hand-written 007 on its
+# first run, silently, and the next psql invocation failed on a missing file.
+# The generator owns 001-005; anything numbered 006 and up is a hand-written
+# fix-up against an already-loaded database and is protected from deletion.
+rsync -a --delete --filter='protect 0[0-9][0-9]_*.sql' \
+      --filter='protect rollback/0[0-9][0-9]_*.sql' \
+      "$SRC/postgres/migrations/"   database/postgres/migrations/
 rsync -a --delete "$SRC/postgres/tables/"       database/postgres/tables/
 rsync -a --delete "$SRC/mongodb/migrations/"    database/mongodb/migrations/
 rsync -a --delete "$SRC/mongodb/collections/"   database/mongodb/collections/

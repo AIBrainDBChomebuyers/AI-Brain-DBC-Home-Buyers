@@ -59,3 +59,8 @@ database/mongodb/collections/*.json
 database/MANIFEST.json
 database/schema.json
 database/**/*.tmp
+
+# Temp file written by the mutation suite over scripts/verify_migration.py.
+# It has to live beside the original (the script resolves the project root
+# from __file__), so it lands in a tracked directory for a few seconds.
+scripts/_mutation_under_test.py

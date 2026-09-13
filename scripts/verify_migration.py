@@ -4,7 +4,7 @@
 Not a spot check. Every table, every row, every column, compared value by
 value against DBC_Client_Review.xlsx - the file the export was built from.
 
-Six checks, in the order a doubt would arise:
+Seven checks, in the order a doubt would arise:
 
   1  row counts        every table has as many rows as its workbook tab
   2  values            every cell equals the workbook cell it came from
@@ -12,12 +12,14 @@ Six checks, in the order a doubt would arise:
   4  dropped columns   the 14 columns the export left out really were empty
   5  fill rates        nothing arrived completely null
   6  RLS               each of the six roles sees exactly its own tables
+  7  joins             foreign keys indexed, no orphans, categorical values
+                       agree across tables, no numbers hiding in TEXT columns
 
 Check 6 must connect as the application role. Connecting as `postgres`
 proves nothing: it holds BYPASSRLS, so every policy is skipped and every
 table looks readable to every role.
 
-    python3 scripts/verify_migration.py            # all six
+    python3 scripts/verify_migration.py            # all seven
     python3 scripts/verify_migration.py --quick    # skip 2, the slow one
 """
 from __future__ import annotations
@@ -68,6 +70,13 @@ ECONOMICS_FROM = "Deal Portfolio"
 ENVELOPE = {"row_key", "source_tab", "source_row",
             "department", "sensitivity", "allowed_roles"}
 
+# Columns that hold only digits and are still correctly TEXT. A ZIP is not a
+# quantity - you never add two of them, and 07030 must keep its leading zero.
+# Same for account and lockbox numbers. Check 7 would otherwise report these
+# every run and train the reader to skim past real findings.
+TEXT_BY_DESIGN = {"property_zip", "loan_or_account_number", "lockbox",
+                  "hud_settlement_dates"}
+
 # Left out of the load because they hold one value or none. Check 4 proves it.
 DROPPED = {
     "HUD Settlements": ["total_settlement_charges", "doc_type"],
@@ -106,6 +115,32 @@ EXPECTED_ROLES = {
 }
 
 failures: list[str] = []
+
+
+def expected_value_maps() -> dict[tuple[str, str], dict[str, str]]:
+    """Whole-column value rewrites the export applies, from its own manifest.
+
+    Distinct from expected_corrections() below, which names individual rows.
+    These apply to every row of one column: Deal Aggregates spells it
+    "Wholesalers" and Deal Portfolio spells it "Wholesaler", both straight from
+    the workbook, and the join between them returned nothing at all - not an
+    error, zero rows, for 45 aggregate rows and 48 properties. The export now
+    rewrites the aggregate side to match the spine.
+
+    Returns {(table, column): {workbook value: database value}}.
+    """
+    if not MANIFEST.exists():
+        return {}
+    warnings = json.loads(MANIFEST.read_text()).get("warnings", [])
+    line = next((w for w in warnings if "value spellings reconciled" in w), None)
+    if not line:
+        return {}
+    out: dict[tuple[str, str], dict[str, str]] = {}
+    for part in line.split(":", 1)[1].split(";"):
+        m = re.search(r"(\w+)\.(\w+):\s*'(.*?)'\s*->\s*'(.*?)'", part.strip())
+        if m:
+            out.setdefault((m.group(1), m.group(2)), {})[m.group(3)] = m.group(4)
+    return out
 
 
 def expected_corrections() -> dict[tuple[str, str], tuple[str, str]]:
@@ -257,7 +292,9 @@ def main() -> int:
     else:
         print("2. values")
         corrections = expected_corrections()
+        value_maps = expected_value_maps()
         applied: set[tuple[str, str]] = set()
+        maps_seen: set[tuple[str, str]] = set()
         cells = diffs = 0
         pairs = list(TAB2TABLE.items()) + [(ECONOMICS_FROM, "deal_economics")]
         for tab, table in pairs:
@@ -294,6 +331,10 @@ def main() -> int:
                     if want and (a, b) == (norm(want[0]), norm(want[1])):
                         applied.add((key, c))
                         continue
+                    vmap = value_maps.get((table, c))
+                    if vmap and isinstance(a, str) and vmap.get(a) == b:
+                        maps_seen.add((table, c))
+                        continue
                     t_diffs += 1
                     if t_diffs <= 3:
                         fail(f"{table} row {i} {c}: workbook {a!r}, database {b!r}")
@@ -301,13 +342,17 @@ def main() -> int:
             diffs += t_diffs
             if t_diffs > 3:
                 fail(f"{table}: {t_diffs} differing values in total")
+        for tc in sorted(set(value_maps) - maps_seen):
+            fail(f"{tc[0]}.{tc[1]}: the manifest says this column's values were "
+                 f"reconciled with the spine, but the database still matches "
+                 f"the workbook")
         missed = set(corrections) - applied
         for key, col in sorted(missed):
             fail(f"{key} {col}: the manifest says this was corrected, "
                  f"but the database still matches the workbook")
         print(f"   {cells:,} cells compared, {diffs} unexplained differences")
-        print(f"   {len(applied)} of {len(corrections)} manifest corrections "
-              f"present in the database\n")
+        print(f"   {len(applied)} of {len(corrections)} row corrections and "
+              f"{len(maps_seen)} of {len(value_maps)} value rewrites present\n")
 
     # ---- 3. derived columns ----------------------------------------------
     print("3. derived columns")
@@ -446,13 +491,82 @@ def main() -> int:
             app.close()
             print(f"   {len(EXPECTED_ROLES)} tables x {len(EVERYONE)} roles, "
                   f"plus no-role and writes\n")
+    # ---- 7. joins --------------------------------------------------------
+    # Everything above compares the database to the workbook one column at a
+    # time, and all of it passed while the chatbot's most obvious join returned
+    # zero rows. Values being right is not the same as values lining up.
+    print("7. joins")
+    # every foreign key indexed, or each join is a sequential scan
+    fks = conn.execute("""
+        SELECT c.relname, a.attname
+        FROM pg_constraint con
+        JOIN pg_class c ON c.oid = con.conrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN unnest(con.conkey) k(attnum) ON true
+        JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
+        WHERE n.nspname = 'public' AND con.contype = 'f'""").fetchall()
+    if not fks:
+        fail("no foreign keys declared; nothing enforces the joins")
+    for table, col in fks:
+        indexed = conn.execute("""
+            SELECT count(*) FROM pg_indexes
+            WHERE schemaname='public' AND tablename=%s AND indexdef LIKE %s""",
+            (table, f"%({col}%")).fetchone()[0]
+        if not indexed:
+            fail(f"{table}.{col} is a foreign key with no index; every join "
+                 f"over it is a sequential scan")
+        orphans = conn.execute(f"""
+            SELECT count(*) FROM "{table}" t WHERE t.{col} IS NOT NULL
+            AND NOT EXISTS (SELECT 1 FROM deal_portfolio d
+                            WHERE d.property_key = t.{col})""").fetchone()[0]
+        if orphans:
+            fail(f"{table}: {orphans} rows point at a property that is not in "
+                 f"deal_portfolio")
+    # categorical columns that appear on more than one table have to agree, or
+    # the join silently returns nothing for the values that differ
+    for table, col, spine_col in [
+            ("deal_aggregates", "deal_source", "deal_source"),
+            ("performance_by_exit_strategy", "exit_strategy", "exit_strategy"),
+            ("performance_by_county", "county_code", "county_code")]:
+        stray = conn.execute(f"""
+            SELECT DISTINCT t.{col} FROM "{table}" t
+            WHERE t.{col} IS NOT NULL AND NOT EXISTS (
+                SELECT 1 FROM deal_portfolio d WHERE d.{spine_col} = t.{col})
+            """).fetchall()
+        for (v,) in stray:
+            fail(f"{table}.{col} = {v!r} matches no row in "
+                 f"deal_portfolio.{spine_col}; that join returns nothing")
+    # a numeric column typed TEXT loads cleanly and then sorts as a string
+    mistyped = []
+    for table in sorted(EXPECTED_ROLES):
+        if table not in live:
+            continue
+        cols = conn.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_schema='public' AND table_name=%s AND data_type='text'
+            """, (table,)).fetchall()
+        for (c,) in cols:
+            if c in ENVELOPE or c in TEXT_BY_DESIGN:
+                continue
+            sql = (f'SELECT count("{c}"), count(*) FILTER '
+                   f'(WHERE "{c}" ~ \'^-?[0-9]+(\\.[0-9]+)?$\') '
+                   f'FROM "{table}"')
+            n, numeric = conn.execute(sql).fetchone()
+            if n and n == numeric:
+                mistyped.append(f"{table}.{c}")
+    for m in mistyped:
+        fail(f"{m} is TEXT but every value is a number; ORDER BY will sort it "
+             f"as a string and SUM will not work at all")
+    print(f"   {len(fks)} foreign keys, 3 categorical columns, "
+          f"{len(EXPECTED_ROLES)} tables scanned for mistyped numbers\n")
+
     conn.close()
 
     print("=" * 68)
     if failures:
         print(f"{len(failures)} FAILURE(S)")
         return 1
-    print("all six checks passed")
+    print("all seven checks passed")
     return 0
 
 
