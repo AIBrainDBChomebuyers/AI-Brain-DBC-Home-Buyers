@@ -61,6 +61,60 @@ Items 1–5 are independent of the consolidation and can start today.
 
 ---
 
+## 2026-09-13 — MCP connected, and it found a real hole
+
+**Layer:** database, ops
+**Status:** PostgREST surface closed · RLS predicate hoisted to an InitPlan
+
+Supabase MCP finally authorised, and the first thing it earned was an
+independent audit of what I loaded this morning — through a different path
+than the psql I loaded it with.
+
+**Verified — the data is sound:**
+
+| Check | Result |
+|---|---|
+| Rows | 5,279, matching the loader exactly |
+| Referential integrity | 0 true orphans (6 settlements carry a NULL key, by design) |
+| RLS enabled + FORCED | 16 of 16 tables |
+| Views | 7, all `security_invoker` |
+| va / executive / unset | 256/0/0 · 256/256/256 · 0 |
+
+**Highlights:**
+
+- **`_migrations` was readable and TRUNCATE-able by anyone with the
+  publishable key.** Supabase grants ALL on `public` to `anon` and
+  `authenticated` by default and exposes the schema through PostgREST. The
+  design assumed direct pg connections only, so nothing revoked it. RLS
+  covered the 16 data tables — anon reads 0 rows from `deal_portfolio`,
+  `deal_economics` and every view, which I confirmed by querying as anon —
+  but the ledger has no policy, so it was wide open. The publishable key is
+  public by design and is in a chat transcript.
+- **Fixed by revoking rather than by adding a policy.** Nothing here uses
+  PostgREST; the API connects as `ai_brain_app` over the pooler. No grant is
+  a stronger statement than a policy that happens to return nothing. Default
+  privileges revoked too, so the next table added is not silently re-granted.
+- **Every policy re-evaluated `current_setting()` once per row** — 3,374
+  times on `master_budget_line_items`. Wrapping the call in a scalar subquery
+  makes the planner hoist it into an InitPlan: same semantics, one
+  evaluation. Supabase's own linter flagged it on all 16 tables.
+- **A mutation was passing for the wrong reason.** `d_break_rls_policy`
+  searched for the literal old predicate; once the predicate changed it
+  replaced nothing, so the suite stayed green and the mutation reported
+  caught-by-omission. It now matches the `USING` clause structurally and
+  raises if it finds nothing to break. A mutation that does not mutate proves
+  the opposite of what it claims.
+
+**Verified after the change:** security advisor down from ERROR to INFO
+(*"RLS enabled, no policy"* on `_migrations`, which is correct — nothing but
+the migration runner should read it). `ai_brain_app` still holds SELECT on 23
+relations, and the full permission matrix re-ran unchanged. 125/125 workbook,
+61/61 export, 38/38 mutations.
+
+**Left open:** identity and the embedding model, still both decisions.
+
+---
+
 ## 2026-09-13 — The database is live. RLS tested for real, not simulated.
 
 **Layer:** database, ops
