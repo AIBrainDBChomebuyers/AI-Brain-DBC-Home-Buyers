@@ -24,7 +24,7 @@ named · `TODO` not started · `N/A` decided against
 | Store count | `WIP` | **One database** decided 2026-09-13; rework pending |
 | Access control | `DONE` | RLS on all tables; extends to passages once folded in |
 | Project scaffold | `DONE` | backend / frontend / shared / database / infra |
-| Live database | `BLOCKED` | never loaded into a running instance — see §5 |
+| Live database | `DONE` | Supabase, PG 17.6, 5,279 rows, RLS verified 2026-09-13 |
 | Embeddings | `BLOCKED` | nothing generates them — see §5 |
 | Orchestrator | `TODO` | stub in place, seam defined |
 | Identity (Keycloak) | `TODO` | container runs, realm not created |

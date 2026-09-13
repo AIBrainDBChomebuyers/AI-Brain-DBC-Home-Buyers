@@ -10,6 +10,19 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 [ -f .env ] && set -a && . ./.env && set +a
 
+# Use an interpreter that actually has psycopg. A bare `python3` may resolve
+# to one without it — on this machine Homebrew's comes first on PATH while
+# the dependency lives under /usr/bin/python3. Override with PY=... if yours
+# differs.
+PY="${PY:-$(for c in /usr/bin/python3 python3 python3.12 python3.11; do
+      command -v "$c" >/dev/null 2>&1 && "$c" -c "import psycopg" 2>/dev/null && echo "$c" && break
+    done)}"
+if [ -z "$PY" ]; then
+  echo "no python3 with psycopg found. Install it:" >&2
+  echo "  /usr/bin/python3 -m pip install --user 'psycopg[binary]'" >&2
+  exit 1
+fi
+
 DSN="${DATABASE_URL_DIRECT:-postgresql://${PG_OWNER_USER}:${PG_OWNER_PASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}}"
-python3 database/postgres/migrations/load_data.py --dsn "$DSN"
+"$PY" database/postgres/migrations/load_data.py --dsn "$DSN"
 echo "done."

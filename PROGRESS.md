@@ -42,9 +42,10 @@ Ordered. Take the top one.
 
 | # | Task | Layer | Blocked by |
 |---|---|---|---|
-| 1 | Create the Supabase project; check `rolbypassrls` — [SETUP.md](docs/SETUP.md) | ops | nothing |
-| 2 | Run migrations, load the 16 existing tables | database | 1 |
-| 3 | Integration test: RLS behaves as simulated | database | 2 |
+| ~~1~~ | ~~Create the Supabase project~~ **done** | ops | — |
+| ~~2~~ | ~~Run migrations, load 16 tables~~ **done, 5,279 rows** | database | — |
+| ~~3~~ | ~~Verify RLS on a real server~~ **done, va sees 0 economics** | database | — |
+| 3b | Automate that check as a CI integration test | database | nothing |
 | 4 | Decide identity — Supabase auth or Keycloak | ops | a decision |
 | 5 | Decide the embedding model (1536 vs 3072) | rag | a decision |
 | 6 | Consolidate: collections → tables, pgvector column | database | nothing |
@@ -57,6 +58,58 @@ Ordered. Take the top one.
 
 Items 1–5 are independent of the consolidation and can start today.
 
+
+---
+
+## 2026-09-13 — The database is live. RLS tested for real, not simulated.
+
+**Layer:** database, ops
+**Status:** blocker #1 `DONE` · #2 `DONE` · #3 `DONE`
+
+Supabase project `ihmrhwmqgsnumavebztf` (PG 17.6, ap-northeast-2). All five
+migrations applied, 5,279 rows loaded in 8.9s, and the permission boundary
+verified against a running server for the first time in this project.
+
+**Verified — the numbers that were previously only simulated:**
+
+| Role | deal_portfolio | deal_economics | hud_settlements | master_budget |
+|---|---:|---:|---:|---:|
+| va | 256 | **0** | **0** | **0** |
+| executive | 256 | 256 | 382 | 46 |
+| no role set | **0** | | | |
+| empty string | **0** | | | |
+| unknown role | **0** | | | |
+
+Connecting as `ai_brain_app` over the transaction pooler — the API's own
+path — RLS applies, and an INSERT is refused outright: *permission denied for
+table deal_portfolio*.
+
+**Highlights:**
+
+- **The portable `DO` block earned itself.** `003` printed *"loader role
+  postgres already bypasses RLS"*. The hard-coded
+  `ALTER ROLE ai_brain_owner BYPASSRLS` it replaced would have aborted the
+  migration here, on the first attempt.
+- **`db.<ref>.supabase.co` is IPv6-only and this machine has no IPv6.** The
+  direct host has an AAAA record and no A record, so it does not resolve at
+  all. Both connections now go through the pooler: session mode (5432) for
+  migrations and loading, transaction mode (6543) for the API.
+- **The database password contained a `$` immediately before the `@`.** The
+  scripts source `.env`, so the shell read `$@` and expanded it to nothing —
+  turning the DSN into `postgres:MarylandDBC12345db.host...` with the
+  separator gone. Percent-encoded to `%24`. Worth remembering for any
+  credential with shell metacharacters.
+- **`postgres` on Supabase is not a superuser** (`rolsuper = f`, but
+  `rolbypassrls = t` and `rolcreaterole = t`). It could create `ai_brain_app`
+  but not `SET ROLE` to it until granted membership. Everything the
+  migrations need is available; superuser is not required.
+- **The interpreter trap bit a second time**, in `load-data.sh`. Fixed the
+  same way as `rebuild_all.sh` — probe for a python that can import psycopg
+  rather than trusting PATH. Two scripts, same bug, because the first fix was
+  local rather than systematic.
+
+**Left open:** identity, embeddings, and the single-store consolidation. The
+relational half of the database is now real and queryable.
 
 ---
 
